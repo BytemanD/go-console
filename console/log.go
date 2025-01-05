@@ -6,6 +6,8 @@ import (
 	"log"
 	"log/slog"
 	"os"
+
+	"github.com/fatih/color"
 )
 
 var defaultLog *slog.Logger
@@ -22,7 +24,12 @@ func Info(msg string, args ...interface{}) {
 		pbrManager.Output()
 	})
 }
-
+func Success(msg string, args ...interface{}) {
+	withOutputLock(func() {
+		defaultLog.Info(color.GreenString(fmt.Sprintf(msg, args...)))
+		pbrManager.Output()
+	})
+}
 func Warn(msg string, args ...interface{}) {
 	withOutputLock(func() {
 		defaultLog.Warn(fmt.Sprintf(msg, args...))
@@ -34,6 +41,12 @@ func Error(msg string, args ...interface{}) {
 	withOutputLock(func() {
 		defaultLog.Error(fmt.Sprintf(msg, args...))
 		pbrManager.Output()
+	})
+}
+func Fatal(msg string, args ...interface{}) {
+	withOutputLock(func() {
+		defaultLog.Error(fmt.Sprintf(msg, args...))
+		os.Exit(1)
 	})
 }
 
@@ -49,7 +62,12 @@ func InfoS(msg string, args ...interface{}) {
 		pbrManager.Output()
 	})
 }
-
+func SuccessS(msg string, args ...interface{}) {
+	withOutputLock(func() {
+		defaultLog.Info(color.GreenString(msg), args...)
+		pbrManager.Output()
+	})
+}
 func WarnS(msg string, args ...interface{}) {
 	withOutputLock(func() {
 		defaultLog.Warn(msg, args...)
@@ -63,7 +81,12 @@ func ErrorS(msg string, args ...interface{}) {
 		pbrManager.Output()
 	})
 }
-
+func FatalS(msg string, args ...interface{}) {
+	withOutputLock(func() {
+		defaultLog.Error(msg, args...)
+		os.Exit(1)
+	})
+}
 func DefultLog() *slog.Logger {
 	return defaultLog
 }
