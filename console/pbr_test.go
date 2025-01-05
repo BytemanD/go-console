@@ -14,7 +14,13 @@ func TestPbrs(t *testing.T) {
 	}()
 	go func() {
 		for i := 0; i < 60; i++ {
-			Info("log task", "i", i)
+			Info("log %d", i)
+			time.Sleep(time.Millisecond * 10)
+		}
+	}()
+	go func() {
+		for i := 0; i < 60; i++ {
+			InfoS("log with struct", "i", i)
 			time.Sleep(time.Millisecond * 20)
 		}
 	}()
