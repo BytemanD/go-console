@@ -6,8 +6,10 @@ import (
 )
 
 func TestPbrs(t *testing.T) {
+	EnableLogDebug()
+	SetLogFile("/tmp/go_console.log")
 	go func() {
-		for i := 0; i < 60; i++ {
+		for i := 0; i < 10; i++ {
 			Println("pring task ", i)
 			time.Sleep(time.Millisecond * 10)
 		}

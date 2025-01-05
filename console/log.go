@@ -3,6 +3,7 @@ package console
 import (
 	"context"
 	"fmt"
+	"log"
 	"log/slog"
 	"os"
 )
@@ -63,7 +64,11 @@ func ErrorS(msg string, args ...interface{}) {
 	})
 }
 
-func EnableDebug() {
+func DefultLog() *slog.Logger {
+	return defaultLog
+}
+
+func EnableLogDebug() {
 	defaultLog = slog.New(
 		&ConsoleHandler{
 			slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
@@ -71,6 +76,14 @@ func EnableDebug() {
 			}),
 		},
 	)
+}
+
+func SetLogFile(file string) {
+	logFile, err := os.OpenFile(file, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0766)
+	if err != nil {
+		panic(err)
+	}
+	log.SetOutput(logFile)
 }
 
 type ConsoleHandler struct {
