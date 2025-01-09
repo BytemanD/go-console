@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/fatih/color"
+	"github.com/mattn/go-runewidth"
 	"golang.org/x/term"
 )
 
@@ -21,13 +22,13 @@ type Pbr struct {
 	mu        *sync.Mutex
 }
 
-func (p *Pbr) Ingrement() {
+func (p *Pbr) Increment() {
 	p.completed += 1
 	withOutputLock(func() {
 		pbrManager.Output()
 	})
 }
-func (p *Pbr) IngrementN(n int) {
+func (p *Pbr) IncrementN(n int) {
 	p.completed += n
 	withOutputLock(func() {
 		pbrManager.Output()
@@ -64,14 +65,14 @@ type PbrDefaultTheme struct {
 }
 
 func (t PbrDefaultTheme) fixTitle(pbr Pbr, titleLength int) string {
-	return fmt.Sprintf(fmt.Sprintf("%%-%ds", titleLength), pbr.Title)
+	return runewidth.FillRight(pbr.Title, titleLength) + ":"
 }
 
 func (t PbrDefaultTheme) Render(pbr Pbr, titleLength, progrssLength int) string {
 	// 计算百分比
 	percent := pbr.Percent()
 	fixedProgressLength := int(percent) * progrssLength / 100
-	progressStr := strings.Repeat(t.Char, fixedProgressLength)
+	progressStr := strings.Repeat(t.Char, max(fixedProgressLength, 0))
 	if pbr.IsDone() {
 		progressStr = color.GreenString(progressStr)
 	} else {
@@ -89,7 +90,7 @@ type Manager struct {
 
 func (m *Manager) Add(pbr *Pbr) {
 	m.items = append(m.items, pbr)
-	m.titleLength = max(m.titleLength, len(pbr.Title))
+	m.titleLength = max(m.titleLength, runewidth.StringWidth(pbr.Title))
 }
 
 func (m *Manager) Reset() {

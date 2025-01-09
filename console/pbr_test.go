@@ -30,19 +30,19 @@ func TestPbrs(t *testing.T) {
 	go func() {
 		pbr := NewPbr(100, "foo")
 		for i := 0; i < 100; i++ {
-			pbr.Ingrement()
+			pbr.Increment()
 			time.Sleep(time.Millisecond * 10)
 		}
 	}()
 	go func() {
 		pbr2 := NewPbr(100, "bar")
 		for i := 0; i < 100; i++ {
-			pbr2.Ingrement()
+			pbr2.Increment()
 			time.Sleep(time.Millisecond * 20)
 		}
 	}()
 
-	pbr3 := NewPbr(100, "bar3 with with done")
+	pbr3 := NewPbr(100, "bar3 无进度")
 	pbr3.Done()
 	WaitPbrs()
 	doneNum := GetPbrNum()
