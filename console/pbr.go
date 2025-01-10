@@ -12,7 +12,7 @@ import (
 )
 
 var pbrMu *sync.Mutex
-var pbrChan chan bool
+var pbrWaitGroup *sync.WaitGroup
 
 type Pbr struct {
 	Total     int
@@ -23,25 +23,32 @@ type Pbr struct {
 }
 
 func (p *Pbr) Increment() {
-	p.completed += 1
-	withOutputLock(func() {
-		pbrManager.Output()
-	})
+	p.IncrementN(1)
 }
 func (p *Pbr) IncrementN(n int) {
+	if p.IsDone() {
+		return
+	}
 	p.completed += n
+	if p.completed >= p.Total {
+		p.Done()
+	}
 	withOutputLock(func() {
 		pbrManager.Output()
 	})
 }
 func (p *Pbr) IsDone() bool {
-	if p.done {
-		return true
-	}
-	return p.completed >= p.Total
+	return p.done
 }
 func (p *Pbr) Done() {
+	if p.IsDone() {
+		return
+	}
 	p.done = true
+	if enableLog {
+		DebugS("task done", "pkg", "console", "title", p.Title)
+	}
+	pbrWaitGroup.Done()
 }
 
 func (p *Pbr) Percent() float64 {
@@ -50,8 +57,11 @@ func (p *Pbr) Percent() float64 {
 func NewPbr(total int, title string) *Pbr {
 	pbrMu.Lock()
 	defer pbrMu.Unlock()
-
+	if enableLog {
+		DebugS("new pbr", "pkg", "console", "title", title)
+	}
 	pbr := &Pbr{Total: total, Title: title, mu: &sync.Mutex{}}
+	pbrWaitGroup.Add(1)
 	pbrManager.Add(pbr)
 	return pbr
 }
@@ -99,9 +109,6 @@ func (m *Manager) Reset() {
 }
 
 func (m *Manager) Output() {
-	pbrMu.Lock()
-	defer pbrMu.Unlock()
-
 	if len(m.items) == 0 {
 		return
 	}
@@ -129,7 +136,6 @@ func (m *Manager) Output() {
 		}
 	} else {
 		m.Reset()
-		pbrChan <- true
 	}
 }
 
@@ -143,13 +149,12 @@ func GetPbrNum() int {
 	return len(pbrManager.items)
 }
 
-func WaitPbrs() {
-	<-pbrChan
+func WaitAllPbrs() {
+	pbrWaitGroup.Wait()
 }
-
 func init() {
 	pbrMu = &sync.Mutex{}
-	pbrChan = make(chan bool)
+	pbrWaitGroup = &sync.WaitGroup{}
 
 	pbrManager = &Manager{theme: PbrDefaultTheme{Char: "━"}}
 	pbrManager.Reset()

@@ -6,6 +6,7 @@ import (
 )
 
 var outputLock *sync.Mutex
+var enableLog bool
 
 func withOutputLock(outputFunc func()) {
 	outputLock.Lock()
@@ -37,6 +38,13 @@ func Print(a ...any) {
 	})
 }
 
+func PkgEnableLog() {
+	enableLog = true
+}
+func PkgDisablePkgLog() {
+	enableLog = false
+}
 func init() {
 	outputLock = &sync.Mutex{}
+	enableLog = false
 }

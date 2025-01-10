@@ -6,8 +6,10 @@ import (
 )
 
 func TestPbrs(t *testing.T) {
+	PkgEnableLog()
 	EnableLogDebug()
 	SetLogFile("/tmp/go_console.log")
+	Debug("start tasks")
 	go func() {
 		for i := 0; i < 10; i++ {
 			Println("pring task ", i)
@@ -16,26 +18,26 @@ func TestPbrs(t *testing.T) {
 	}()
 	go func() {
 		for i := 0; i < 60; i++ {
-			Info("log %d", i)
+			Debug("log %d", i)
 			time.Sleep(time.Millisecond * 10)
 		}
 	}()
 	go func() {
 		for i := 0; i < 60; i++ {
-			InfoS("log with struct", "i", i)
+			DebugS("log with struct", "i", i)
 			time.Sleep(time.Millisecond * 20)
 		}
 	}()
 
+	pbr := NewPbr(100, "foo")
 	go func() {
-		pbr := NewPbr(100, "foo")
 		for i := 0; i < 100; i++ {
 			pbr.Increment()
 			time.Sleep(time.Millisecond * 10)
 		}
 	}()
+	pbr2 := NewPbr(100, "bar")
 	go func() {
-		pbr2 := NewPbr(100, "bar")
 		for i := 0; i < 100; i++ {
 			pbr2.Increment()
 			time.Sleep(time.Millisecond * 20)
@@ -44,7 +46,26 @@ func TestPbrs(t *testing.T) {
 
 	pbr3 := NewPbr(100, "bar3 无进度")
 	pbr3.Done()
-	WaitPbrs()
+	WaitAllPbrs()
+	PkgDisablePkgLog()
+	Println("====== start new tasks ========")
+
+	pbr4 := NewPbr(100, "bar4")
+	go func() {
+		for i := 0; i < 100; i++ {
+			pbr4.Increment()
+			time.Sleep(time.Millisecond * 20)
+		}
+	}()
+	pbr5 := NewPbr(100, "bar5")
+	go func() {
+		for i := 0; i < 100; i++ {
+			pbr5.Increment()
+			time.Sleep(time.Millisecond * 10)
+		}
+	}()
+	WaitAllPbrs()
+
 	doneNum := GetPbrNum()
 	if doneNum != 0 {
 		t.Errorf("expected done num be 0, but got %d", doneNum)
