@@ -8,18 +8,21 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/mattn/go-runewidth"
+	"github.com/samber/lo"
 	"golang.org/x/term"
 )
 
-var pbrMu *sync.Mutex
+// var pbrMu *sync.Mutex
 var pbrWaitGroup *sync.WaitGroup
+
+var pbrSync = lo.Synchronize()
 
 type Pbr struct {
 	Total     int
 	Title     string
 	completed int
 	done      bool
-	mu        *sync.Mutex
+	theme     PbrThemeInterface
 }
 
 func (p *Pbr) Increment() {
@@ -55,14 +58,18 @@ func (p *Pbr) Percent() float64 {
 	return float64(p.completed*100) / float64(p.Total)
 }
 func NewPbr(total int, title string) *Pbr {
-	pbrMu.Lock()
-	defer pbrMu.Unlock()
-	if enableLog {
-		DebugS("new pbr", "pkg", "console", "title", title)
-	}
-	pbr := &Pbr{Total: total, Title: title, mu: &sync.Mutex{}}
-	pbrWaitGroup.Add(1)
-	pbrManager.Add(pbr)
+	return NewPbrWithTheme(total, title, THEME_DEFAULT)
+}
+func NewPbrWithTheme(total int, title string, theme PbrThemeInterface) *Pbr {
+	var pbr *Pbr
+	pbrSync.Do(func() {
+		if enableLog {
+			DebugS("new pbr", "pkg", "console", "title", title)
+		}
+		pbr = &Pbr{Total: total, Title: title, theme: theme}
+		pbrWaitGroup.Add(1)
+		pbrManager.Add(pbr)
+	})
 	return pbr
 }
 
@@ -70,15 +77,15 @@ type PbrThemeInterface interface {
 	Render(pbr Pbr, titleLength, progrssLength int) string
 }
 
-type PbrDefaultTheme struct {
+type PbrTheme struct {
 	Char string
 }
 
-func (t PbrDefaultTheme) fixTitle(pbr Pbr, titleLength int) string {
+func (t PbrTheme) fixTitle(pbr Pbr, titleLength int) string {
 	return runewidth.FillRight(pbr.Title, titleLength) + ":"
 }
 
-func (t PbrDefaultTheme) Render(pbr Pbr, titleLength, progrssLength int) string {
+func (t PbrTheme) Render(pbr Pbr, titleLength, progrssLength int) string {
 	// 计算百分比
 	percent := pbr.Percent()
 	fixedProgressLength := int(percent) * progrssLength / 100
@@ -92,9 +99,16 @@ func (t PbrDefaultTheme) Render(pbr Pbr, titleLength, progrssLength int) string 
 	return fmt.Sprintf("%s %s %3.2f%%", t.fixTitle(pbr, titleLength), progressStr, percent)
 }
 
+var (
+	// 标题 : ━━━━━━━━━━━━━━━━━━━━━━ 100.00%
+	THEME_DEFAULT = PbrTheme{Char: "━"}
+	// 标题 : ====================== 100.00%
+	THEME_SIMPLE = PbrTheme{Char: "="}
+)
+
 type Manager struct {
-	items       []*Pbr
-	theme       PbrThemeInterface
+	items []*Pbr
+	// theme       PbrThemeInterface
 	titleLength int
 }
 
@@ -125,7 +139,7 @@ func (m *Manager) Output() {
 	completed := 0
 	for _, pbr := range m.items {
 		fmt.Print("\033[2K\r")
-		fmt.Println(m.theme.Render(*pbr, m.titleLength, progrssLength))
+		fmt.Println(pbr.theme.Render(*pbr, m.titleLength, progrssLength))
 		if pbr.IsDone() {
 			completed += 1
 		}
@@ -141,10 +155,6 @@ func (m *Manager) Output() {
 
 var pbrManager *Manager
 
-func SetPbrTheme(theme PbrThemeInterface) {
-	pbrManager.theme = theme
-}
-
 func GetPbrNum() int {
 	return len(pbrManager.items)
 }
@@ -152,10 +162,15 @@ func GetPbrNum() int {
 func WaitAllPbrs() {
 	pbrWaitGroup.Wait()
 }
+
+func CustomeTheme(c string) PbrTheme {
+	return PbrTheme{Char: c}
+}
+
 func init() {
-	pbrMu = &sync.Mutex{}
+	// pbrMu = &sync.Mutex{}
 	pbrWaitGroup = &sync.WaitGroup{}
 
-	pbrManager = &Manager{theme: PbrDefaultTheme{Char: "━"}}
+	pbrManager = &Manager{}
 	pbrManager.Reset()
 }
