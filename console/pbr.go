@@ -145,7 +145,7 @@ func (m *Manager) Output() {
 		}
 	}
 	if completed < len(m.items) {
-		for i := 0; i < len(m.items); i++ {
+		for range m.items {
 			fmt.Print("\033[1A")
 		}
 	} else {
@@ -159,7 +159,7 @@ func GetPbrNum() int {
 	return len(pbrManager.items)
 }
 
-func WaitAllPbrs() {
+func WaitAllProgressBar() {
 	pbrWaitGroup.Wait()
 }
 
@@ -168,7 +168,6 @@ func CustomeTheme(c string) PbrTheme {
 }
 
 func init() {
-	// pbrMu = &sync.Mutex{}
 	pbrWaitGroup = &sync.WaitGroup{}
 
 	pbrManager = &Manager{}
