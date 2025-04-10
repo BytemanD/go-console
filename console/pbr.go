@@ -3,173 +3,131 @@ package console
 import (
 	"fmt"
 	"os"
-	"strings"
 	"sync"
 
-	"github.com/fatih/color"
 	"github.com/mattn/go-runewidth"
 	"github.com/samber/lo"
 	"golang.org/x/term"
 )
 
-// var pbrMu *sync.Mutex
-var pbrWaitGroup *sync.WaitGroup
-
 var pbrSync = lo.Synchronize()
 
-type Pbr struct {
+type ProgressLinear struct {
 	Total     int
 	Title     string
 	completed int
-	done      bool
-	theme     PbrThemeInterface
+	forceDone bool
+	theme     ProgressBarTheme
 }
 
-func (p *Pbr) Increment() {
+func (p *ProgressLinear) Increment() {
 	p.IncrementN(1)
 }
-func (p *Pbr) IncrementN(n int) {
+func (p *ProgressLinear) IncrementN(n int) {
 	if p.IsDone() {
 		return
 	}
 	p.completed += n
+	withOutputLock(func() {})
 	if p.completed >= p.Total {
-		p.Done()
+		defaultPbrGroup.waitGroup.Done()
 	}
-	withOutputLock(func() {
-		pbrManager.Output()
-	})
 }
-func (p *Pbr) IsDone() bool {
-	return p.done
+func (p *ProgressLinear) IsDone() bool {
+	return p.completed >= p.Total || p.forceDone
 }
-func (p *Pbr) Done() {
-	if p.IsDone() {
-		return
-	}
-	p.done = true
+func (p *ProgressLinear) ForceDone() {
+	defer defaultPbrGroup.waitGroup.Done()
+
+	p.forceDone = true
 	if enableLog {
-		DebugS("task done", "pkg", "console", "title", p.Title)
+		DebugS("force progress done", "pkg", "console", "title", p.Title)
 	}
-	pbrWaitGroup.Done()
 }
 
-func (p *Pbr) Percent() float64 {
+func (p *ProgressLinear) Percent() float64 {
 	return float64(p.completed*100) / float64(p.Total)
 }
-func NewPbr(total int, title string) *Pbr {
-	return NewPbrWithTheme(total, title, THEME_DEFAULT)
+func (p *ProgressLinear) Render(titleWidth, progressWidth int) string {
+	return p.theme.Render(p.Title, p.Percent(), titleWidth, progressWidth)
 }
-func NewPbrWithTheme(total int, title string, theme PbrThemeInterface) *Pbr {
-	var pbr *Pbr
+
+func NewProgressLinear(total int, title string, opt ...ProgressBarTheme) *ProgressLinear {
+	theme := THEME_LIGHT
+	if len(opt) > 0 {
+		theme = opt[0]
+	}
+	var pbr *ProgressLinear
 	pbrSync.Do(func() {
 		if enableLog {
-			DebugS("new pbr", "pkg", "console", "title", title)
+			DebugS("new progress bar", "pkg", "console", "title", title)
 		}
-		pbr = &Pbr{Total: total, Title: title, theme: theme}
-		pbrWaitGroup.Add(1)
-		pbrManager.Add(pbr)
+		pbr = &ProgressLinear{Total: total, Title: title, theme: theme}
+		defaultPbrGroup.waitGroup.Add(1)
+		defaultPbrGroup.Add(pbr)
 	})
 	return pbr
 }
 
-type PbrThemeInterface interface {
-	Render(pbr Pbr, titleLength, progrssLength int) string
-}
-
-type PbrTheme struct {
-	Char string
-}
-
-func (t PbrTheme) fixTitle(pbr Pbr, titleLength int) string {
-	return runewidth.FillRight(pbr.Title, titleLength) + ":"
-}
-
-func (t PbrTheme) Render(pbr Pbr, titleLength, progrssLength int) string {
-	// 计算百分比
-	percent := pbr.Percent()
-	fixedProgressLength := int(percent) * progrssLength / 100
-	progressStr := strings.Repeat(t.Char, max(fixedProgressLength, 0))
-	if pbr.IsDone() {
-		progressStr = color.GreenString(progressStr)
-	} else {
-		progressStr = color.RedString(progressStr)
-	}
-	progressStr += color.WhiteString(strings.Repeat(t.Char, progrssLength-int(fixedProgressLength)))
-	return fmt.Sprintf("%s %s %3.2f%%", t.fixTitle(pbr, titleLength), progressStr, percent)
-}
-
-var (
-	// 标题 : ━━━━━━━━━━━━━━━━━━━━━━ 100.00%
-	THEME_DEFAULT = PbrTheme{Char: "━"}
-	// 标题 : ====================== 100.00%
-	THEME_SIMPLE = PbrTheme{Char: "="}
-)
-
-type Manager struct {
-	items []*Pbr
-	// theme       PbrThemeInterface
+type PbrGroup struct {
+	items       []*ProgressLinear
 	titleLength int
+	waitGroup   *sync.WaitGroup
 }
 
-func (m *Manager) Add(pbr *Pbr) {
+func (m *PbrGroup) Add(pbr *ProgressLinear) {
 	m.items = append(m.items, pbr)
 	m.titleLength = max(m.titleLength, runewidth.StringWidth(pbr.Title))
 }
 
-func (m *Manager) Reset() {
-	m.items = []*Pbr{}
+func (m *PbrGroup) Reset() {
+	m.items = []*ProgressLinear{}
 	m.titleLength = 0
 }
 
-func (m *Manager) Output() {
+func (m *PbrGroup) Output() {
 	if len(m.items) == 0 {
 		return
 	}
 	//获取终端宽度
-	progrssLength := 100
-	width, _, err := term.GetSize(int(os.Stdin.Fd()))
-	if err == nil {
-		progrssLength = width
+	progressWidth := 100
+	if width, _, err := term.GetSize(int(os.Stdin.Fd())); err == nil {
+		progressWidth = width
 	}
 	// 计算进度条长度
-	progrssLength = progrssLength - m.titleLength - 10
+	progressWidth = progressWidth - m.titleLength - 10
 
 	fmt.Print("\033[2K\r")
-	completed := 0
-	for _, pbr := range m.items {
-		fmt.Print("\033[2K\r")
-		fmt.Println(pbr.theme.Render(*pbr, m.titleLength, progrssLength))
+	completed := lo.Reduce(m.items, func(agg int, pbr *ProgressLinear, _ int) int {
+		fmt.Println("\033[2K\r", pbr.Render(m.titleLength, progressWidth))
+
 		if pbr.IsDone() {
-			completed += 1
+			return agg + 1
+		} else {
+			return agg
 		}
-	}
+	}, 0)
+
 	if completed < len(m.items) {
-		for range m.items {
-			fmt.Print("\033[1A")
-		}
+		fmt.Printf("\033[%dA", len(m.items))
 	} else {
 		m.Reset()
 	}
 }
 
-var pbrManager *Manager
+var defaultPbrGroup *PbrGroup
 
-func GetPbrNum() int {
-	return len(pbrManager.items)
+func ProgressCount() int {
+	return len(defaultPbrGroup.items)
 }
 
 func WaitAllProgressBar() {
-	pbrWaitGroup.Wait()
-}
-
-func CustomeTheme(c string) PbrTheme {
-	return PbrTheme{Char: c}
+	defaultPbrGroup.waitGroup.Wait()
 }
 
 func init() {
-	pbrWaitGroup = &sync.WaitGroup{}
-
-	pbrManager = &Manager{}
-	pbrManager.Reset()
+	defaultPbrGroup = &PbrGroup{
+		items:     []*ProgressLinear{},
+		waitGroup: &sync.WaitGroup{},
+	}
 }

@@ -2,39 +2,40 @@ package console
 
 import (
 	"fmt"
-	"sync"
+
+	"github.com/samber/lo"
 )
 
-var outputLock *sync.Mutex
+var outputSync = lo.Synchronize()
+
 var enableLog bool
 
 func withOutputLock(outputFunc func()) {
-	outputLock.Lock()
-	defer outputLock.Unlock()
-
-	fmt.Print("\033[2K\r")
-	outputFunc()
+	outputSync.Do(func() {
+		fmt.Print("\033[2K\r")
+		outputFunc()
+		defaultPbrGroup.Output()
+	})
 }
 
 func Printf(format string, v ...any) {
 	withOutputLock(
 		func() {
 			fmt.Printf(format, v...)
-			pbrManager.Output()
 		})
 }
 
 func Println(a ...any) {
 	withOutputLock(func() {
 		fmt.Println(a...)
-		pbrManager.Output()
+		defaultPbrGroup.Output()
 	})
 }
 
 func Print(a ...any) {
 	withOutputLock(func() {
 		fmt.Print(a...)
-		pbrManager.Output()
+		defaultPbrGroup.Output()
 	})
 }
 
@@ -45,6 +46,6 @@ func PkgDisablePkgLog() {
 	enableLog = false
 }
 func init() {
-	outputLock = &sync.Mutex{}
+	// outputLock = &sync.Mutex{}
 	enableLog = false
 }

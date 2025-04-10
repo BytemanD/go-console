@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-func doSomething(pbr *Pbr, interval int) {
+func doSomething(pbr *ProgressLinear, interval int) {
 	for range pbr.Total {
 		pbr.Increment()
 		time.Sleep(time.Millisecond * time.Duration(interval))
@@ -37,45 +37,55 @@ func TestPbrs(t *testing.T) {
 		}
 	}()
 
-	pbr := NewPbr(100, "默认的进度条1")
-	pbr2 := NewPbr(100, "默认的进度条2")
+	pbr := NewProgressLinear(100, "默认的进度条1")
+	pbr2 := NewProgressLinear(100, "默认的进度条2")
 	go doSomething(pbr, 10)
 	go doSomething(pbr2, 20)
 
-	pbr3 := NewPbr(100, "默认的进度条3 无进度")
-	pbr3.Done()
+	pbr3 := NewProgressLinear(100, "默认的进度条3(无进度)")
+	pbr3.ForceDone()
 
 	WaitAllProgressBar()
 
 	PkgDisablePkgLog()
 	Println("====== start new tasks ========")
 
-	pbr4 := NewPbr(100, "默认进度条4")
-	pbr5 := NewPbr(100, "默认进度条5")
+	pbr4 := NewProgressLinear(100, "默认进度条4")
+	pbr5 := NewProgressLinear(100, "默认进度条5")
 	go doSomething(pbr4, 20)
 	go doSomething(pbr5, 10)
 
 	WaitAllProgressBar()
 	Println("====== start new tasks ========")
-	doneNum := GetPbrNum()
+	doneNum := ProgressCount()
 	if doneNum != 0 {
 		t.Errorf("expected done num be 0, but got %d", doneNum)
 	}
 
-	pbr6 := NewPbrWithTheme(100, "简单的进度条", THEME_SIMPLE)
+	pbr6 := NewProgressLinear(100, "简单的进度条", THEME_CONCISE)
 	go doSomething(pbr6, 10)
-	pbr7 := NewPbrWithTheme(100, "自定义进度条", CustomeTheme("*"))
+	pbr7 := NewProgressLinear(100, "自定义进度条", NewProgressBarTheme("*", ""))
 	go doSomething(pbr7, 20)
 
 	WaitAllProgressBar()
 }
 
-func TestPbrsCreatedSync(t *testing.T) {
+func TestPbrsSync(t *testing.T) {
 	themeChars := []string{"#", "*", ">", "o", "@", "~"}
 	for i := range 5 {
-		pbr := NewPbrWithTheme(100, fmt.Sprintf("并发创建的进度条%d", i), CustomeTheme(themeChars[i]))
+		pbr := NewProgressLinear(100, fmt.Sprintf("并发创建的进度条%d", i),
+			NewProgressBarTheme(themeChars[i], "{{.Title}}: {{.Progress}} {{.Percent}}%"))
 		go doSomething(pbr, i*10)
 	}
-	time.Sleep(time.Second * 2)
+	WaitAllProgressBar()
+}
+
+func TestPbrsSyncWithCustomTemplate(t *testing.T) {
+	themeChars := []string{"#", "*", ">", "o", "@", "~"}
+	for i := range 5 {
+		pbr := NewProgressLinear(100, fmt.Sprintf("并发创建的进度条%d", i),
+			NewProgressBarTheme(themeChars[i], "{{.Title}} [{{.Percent}}%]: {{.Progress}} "))
+		go doSomething(pbr, i*10)
+	}
 	WaitAllProgressBar()
 }

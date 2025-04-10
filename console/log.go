@@ -15,32 +15,28 @@ var defaultLog *slog.Logger
 func Debug(msg string, args ...interface{}) {
 	withOutputLock(func() {
 		defaultLog.Debug(fmt.Sprintf(msg, args...))
-		pbrManager.Output()
 	})
 }
 func Info(msg string, args ...interface{}) {
 	withOutputLock(func() {
 		defaultLog.Info(fmt.Sprintf(msg, args...))
-		pbrManager.Output()
 	})
 }
 func Success(msg string, args ...interface{}) {
 	withOutputLock(func() {
 		defaultLog.Info(color.GreenString(fmt.Sprintf(msg, args...)))
-		pbrManager.Output()
+		defaultPbrGroup.Output()
 	})
 }
 func Warn(msg string, args ...interface{}) {
 	withOutputLock(func() {
 		defaultLog.Warn(fmt.Sprintf(msg, args...))
-		pbrManager.Output()
 	})
 }
 
 func Error(msg string, args ...interface{}) {
 	withOutputLock(func() {
 		defaultLog.Error(fmt.Sprintf(msg, args...))
-		pbrManager.Output()
 	})
 }
 func Fatal(msg string, args ...interface{}) {
@@ -53,32 +49,27 @@ func Fatal(msg string, args ...interface{}) {
 func DebugS(msg string, args ...interface{}) {
 	withOutputLock(func() {
 		defaultLog.Debug(msg, args...)
-		pbrManager.Output()
 	})
 }
 func InfoS(msg string, args ...interface{}) {
 	withOutputLock(func() {
 		defaultLog.Info(msg, args...)
-		pbrManager.Output()
 	})
 }
 func SuccessS(msg string, args ...interface{}) {
 	withOutputLock(func() {
 		defaultLog.Info(color.GreenString(msg), args...)
-		pbrManager.Output()
 	})
 }
 func WarnS(msg string, args ...interface{}) {
 	withOutputLock(func() {
 		defaultLog.Warn(msg, args...)
-		pbrManager.Output()
 	})
 }
 
 func ErrorS(msg string, args ...interface{}) {
 	withOutputLock(func() {
 		defaultLog.Error(msg, args...)
-		pbrManager.Output()
 	})
 }
 func FatalS(msg string, args ...interface{}) {
