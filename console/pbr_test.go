@@ -64,27 +64,26 @@ func TestPbrs(t *testing.T) {
 
 	pbr6 := NewProgressLinear(100, "简单的进度条", THEME_CONCISE)
 	go doSomething(pbr6, 10)
-	pbr7 := NewProgressLinear(100, "自定义进度条", NewProgressBarTheme("*", ""))
+	pbr7 := NewProgressLinear(100, "自定义进度条", *NewProgressBarTheme("*", ""))
 	go doSomething(pbr7, 20)
 
 	WaitAllProgressBar()
 }
 
 func TestPbrsSync(t *testing.T) {
-	themeChars := []string{"#", "*", ">", "o", "@", "~"}
-	for i := range 5 {
-		pbr := NewProgressLinear(100, fmt.Sprintf("并发创建的进度条%d", i),
-			NewProgressBarTheme(themeChars[i], "{{.Title}}: {{.Progress}} {{.Percent}}%"))
-		go doSomething(pbr, i*10)
+	themes := []ProgressBarTheme{THEME_LIGHT, THEME_CONCISE, THEME_EMOJI_AIRPLANE, THEME_EMOJI_HEART}
+	for i := range len(themes) {
+		pbr := NewProgressLinear(100, fmt.Sprintf("并发创建的进度条%d", i), themes[i])
+		go doSomething(pbr, (i+1)*10)
 	}
 	WaitAllProgressBar()
 }
 
 func TestPbrsSyncWithCustomTemplate(t *testing.T) {
 	themeChars := []string{"#", "*", ">", "o", "@", "~"}
-	for i := range 5 {
-		pbr := NewProgressLinear(100, fmt.Sprintf("并发创建的进度条%d", i),
-			NewProgressBarTheme(themeChars[i], "{{.Title}} [{{.Percent}}%]: {{.Progress}} "))
+	for i := range len(themeChars) {
+		theme := NewProgressBarTheme(themeChars[i], "{{.Title}} [{{.Percent}}%]: {{.Progress}}")
+		pbr := NewProgressLinear(100, fmt.Sprintf("并发创建的进度条%d", i), *theme)
 		go doSomething(pbr, i*10)
 	}
 	WaitAllProgressBar()
