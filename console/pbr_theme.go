@@ -11,7 +11,7 @@ import (
 	"github.com/samber/lo"
 )
 
-var DEFAULT_PBR_TEMPLATE = "{{.Title}}: {{.Progress}} {{.Percent}}%"
+var DEFAULT_PBR_TEMPLATE = "{{.Title}}: {{.Progress}} {{.Percent}}"
 
 type pbrData struct {
 	Title    string
@@ -52,7 +52,7 @@ func (p ProgressBarTheme) Render(title string, percent float64, titleWidth int, 
 	if err := p.tmpl.Execute(&buf, pbrData{
 		Title:    runewidth.FillRight(title, titleWidth),
 		Progress: progressStr,
-		Percent:  runewidth.FillLeft(fmt.Sprintf("%.2f", percent), 6),
+		Percent:  runewidth.FillLeft(fmt.Sprintf("%.2f", percent), 6) + "%",
 	}); err != nil {
 		return fmt.Sprintf("<!parse template failed: %s>", err)
 	}
