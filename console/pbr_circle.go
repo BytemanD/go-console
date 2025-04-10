@@ -11,16 +11,20 @@ import (
 )
 
 type ProgressCircleTheme struct {
-	Chars []string
-	index int
-	tmpl  *template.Template
+	Chars    []string
+	progress int
+	index    int
+	tmpl     *template.Template
 }
 
-func (p *ProgressCircleTheme) Render(title string, titleWidth int, progressWidth int) string {
-	defer func() { p.index += 1 }()
+func (p *ProgressCircleTheme) Render(title string, progress int, titleWidth int, progressWidth int) string {
+	if progress != p.progress {
+		p.progress = progress
+		p.index++
+		if p.index >= len(p.Chars) {
+			p.index = 0
+		}
 
-	if p.index >= len(p.Chars) {
-		p.index = 0
 	}
 	var buf bytes.Buffer
 	if err := p.tmpl.Execute(&buf, pbrData{
@@ -36,6 +40,7 @@ func (p *ProgressCircleTheme) Render(title string, titleWidth int, progressWidth
 type ProgressCircle struct {
 	Title     string
 	forceDone bool
+	progress  int
 	theme     ProgressCircleTheme
 }
 
@@ -49,6 +54,7 @@ func (p *ProgressCircle) IncrementN(n int) {
 	if p.IsDone() {
 		return
 	}
+	p.progress += n
 	withOutputLock(func() {})
 }
 func (p *ProgressCircle) IsDone() bool {
@@ -69,7 +75,7 @@ func (p *ProgressCircle) ForceDone() {
 }
 
 func (p *ProgressCircle) Render(titleWidth, progressWidth int) string {
-	return p.theme.Render(p.Title, titleWidth, progressWidth)
+	return p.theme.Render(p.Title, p.progress, titleWidth, progressWidth)
 }
 
 func NewProgressCircleTheme(chars []string, templateArg ...string) *ProgressCircleTheme {
