@@ -11,6 +11,7 @@ func doSomething(pbr *ProgressLinear, interval int) {
 		pbr.Increment()
 		time.Sleep(time.Millisecond * time.Duration(interval))
 	}
+	SuccessS("complted", "title", pbr.Title)
 }
 
 func TestPbrs(t *testing.T) {
@@ -71,6 +72,7 @@ func TestPbrs(t *testing.T) {
 }
 
 func TestPbrsSync(t *testing.T) {
+	EnableLogDebug()
 	themes := []ProgressBarTheme{THEME_LIGHT, THEME_CONCISE, THEME_EMOJI_AIRPLANE, THEME_EMOJI_HEART}
 	for i := range len(themes) {
 		pbr := NewProgressLinear(100, fmt.Sprintf("并发创建的进度条%d", i), themes[i])

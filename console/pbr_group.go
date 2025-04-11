@@ -33,7 +33,7 @@ func (m *PbrGroup) Output() {
 	//获取终端宽度
 	progressWidth := 100
 	if width, _, err := term.GetSize(int(os.Stdin.Fd())); err == nil {
-		progressWidth = width
+		progressWidth = lo.Min([]int{200, width - 8})
 	}
 	// 计算进度条长度
 	progressWidth = progressWidth - m.titleLength - 10

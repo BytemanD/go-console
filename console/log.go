@@ -25,7 +25,6 @@ func Info(msg string, args ...interface{}) {
 func Success(msg string, args ...interface{}) {
 	withOutputLock(func() {
 		defaultLog.Info(color.GreenString(fmt.Sprintf(msg, args...)))
-		defaultPbrGroup.Output()
 	})
 }
 func Warn(msg string, args ...interface{}) {
